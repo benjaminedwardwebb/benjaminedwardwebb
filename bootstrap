@@ -1,0 +1,16 @@
+# Bootstrap
+# curl https://raw.githubusercontent.com/benjaminedwardwebb/benjaminedwardwebb/main/bootstrap
+# TODO: tinyurl
+# TODO: ssh-keygen w/ readline
+# TODO: add ssh key to GitHub via API
+# TODO: install git
+# TODO: clone backpack and install
+
+# ASSUMED
+# sudo apt install curl
+
+bash <(curl -L https://nixos.org/nix/install)
+nix-env -iA git
+ssh-keygen
+git clone git@github.com:benjaminedwardwebb/backpack
+git clone git@github.com:benjaminedwardwebb/.vim
