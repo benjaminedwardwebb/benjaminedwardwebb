@@ -10,6 +10,7 @@
 #
 # 	sudo apt install curl
 # 	curl -L https://tinyurl.com/benjaminedwardwebb > bootstrap
+#	./bootstrap
 #
 # It's also possible to use the long url to obtain the raw content from
 # GitHub.
