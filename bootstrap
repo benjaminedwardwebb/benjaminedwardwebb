@@ -1,17 +1,85 @@
+#!usr/bin/env bash
 # Bootstrap
-# curl https://raw.githubusercontent.com/benjaminedwardwebb/benjaminedwardwebb/main/bootstrap
-# curl https://tinyurl.com/benjaminedwardwebb
-# TODO: tinyurl
-# TODO: ssh-keygen w/ readline
-# TODO: add ssh key to GitHub via API
-# TODO: install git
-# TODO: clone backpack and install
+# An executable to bootstrap my setup, configuration, dotfiles, etc. on a
+# fresh (Ubuntu) host.
+#
+# Besides bash and anything pre-installed by Ubuntu, this executable's only
+# additional dependency is curl. This executable is available publically and
+# redirected to from a tinyurl. It can be installed on a fresh (Ubuntu) host
+# by running the following commands.
+#
+# 	sudo apt install curl
+# 	curl https://tinyurl.com/benjaminedwardwebb
+#
+# It's also possible to use the long url to obtain the raw content from
+# GitHub.
+#
+# 	curl https://raw.githubusercontent.com/benjaminedwardwebb/benjaminedwardwebb/main/bootstrap
+#
+# This bootstrap still contains a manual step of adding the newly generated
+# SSH key (for git cloning purposes) to my GitHub account. This could probably
+# be automated provided all my configuration repositories were public on
+# GitHub.
+#
+# Note, however, that there's likely to be some manual step in bootstrapping
+# any new host because it will eventually require the exchange of secrets
+# (passwords, keys, etc.). This happens in the context of cloning private git
+# repositories here, but seeding secrets to a new host is likely to be
+# required for a lot of other things as well. This kind of secret exchange
+# could be automated, but it would add a lot of complexity and is probably a
+# bad idea. Maybe there is a service that can perform this for me.
+echo "Bootstrap starting ..."
 
-# ASSUMED
-# sudo apt install curl
+# Installing window managers (e.g., i3) and display managers with nix on
+# Ubuntu did not work as seamlessly as I was hoping. This might be because, in
+# order to take effect, they have to alter the system's configuration, and
+# with a vanilla nix install on Ubuntu the system configuration is not
+# actually under nix's control (like it would be with NixOS). For now, it's
+# easier to use the apt and the project-specific repositories to install.
+/usr/lib/apt/apt-helper download-file https://debian.sur5r.net/i3/pool/main/s/sur5r-keyring/sur5r-keyring_2022.02.17_all.deb keyring.deb SHA256:52053550c4ecb4e97c48900c61b2df4ec50728249d054190e8a0925addb12fc6
+dpkg -i ./keyring.deb
+echo "deb http://debian.sur5r.net/i3/ $(grep '^DISTRIB_CODENAME=' /etc/lsb-release | cut -f2 -d=) universe" >> /etc/apt/sources.list.d/sur5r-i3.list
+sudo apt update
+sudo apt install i3
+sudo apt install i3status
+# TODO: Using Ubuntu's default display manager gdm3 for now.
 
 bash <(curl -L https://nixos.org/nix/install)
-nix-env -iA git
-ssh-keygen
+. $HOME/.nix-profile/etc/profile.d/nix.sh
+
+nix-env -iA nixpkgs.fira-code
+nix-env -iA nixpkgs.firefox
+nix-env -iA nixpkgs.git
+nix-env -iA nixpkgs.glow
+nix-env -iA nixpkgs.mutt
+nix-env -iA nixpkgs.newsboat
+nix-env -iA nixpkgs.spotify-tui
+nix-env -iA nixpkgs.spotifyd
+nix-env -iA nixpkgs.ssmtp
+nix-env -iA nixpkgs.stow
+nix-env -iA nixpkgs.taskwarrior
+nix-env -iA nixpkgs.timewarrior
+nix-env -iA nixpkgs.tmux
+nix-env -iA nixpkgs.vim
+nix-env -iA nixpkgs.vimpager
+nix-env -iA nixpkgs.weechat
+
+# Since most of my setup and configuration is still in a private repository on
+# GitHub, I have to authenticate before I can access it. The following steps
+# generate an ssh key pair (necessary for fetching via SSH whether the
+# repoistories are private or public
+ssh_key_path="$HOME/.ssh/id_rsa"
+
+ssh-keygen -f "${ssh_key_path}" -N ''
+
+echo "Add the following public SSH key (at ${ssh_key_path}.pub) to your GitHub account.\n"
+cat "${ssh_key_path}.pub"
+
+read -p "Continue? [Enter]"
+
 git clone git@github.com:benjaminedwardwebb/backpack
 git clone git@github.com:benjaminedwardwebb/.vim
+
+read -p "Bootstrap complete. Reboot? [Enter]"
+
+shutdown -r now
