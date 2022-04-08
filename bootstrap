@@ -1,4 +1,4 @@
-#!usr/bin/env bash
+#!/usr/bin/env bash
 # Bootstrap
 # An executable to bootstrap my setup, configuration, dotfiles, etc. on a
 # fresh (Ubuntu) host.
