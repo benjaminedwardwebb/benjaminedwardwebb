@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
-# Bootstrap
+# bootstrap
 # An executable to bootstrap my setup, configuration, dotfiles, etc. on a
 # fresh (Ubuntu) host.
 #
-# Besides bash and anything pre-installed by Ubuntu, this executable's only
-# additional dependency is curl. This executable is available publically and
-# redirected to from a tinyurl. It can be installed on a fresh (Ubuntu) host
-# by running the following commands.
+# This executable is not responsible for installing all of my configuration
+# itself. It does the minimal amount of work required to get git up and running
+# so it can clone down my other configuration repositories and use their
+# installers.
+#
+# This executable can be downloaded and run using only programs available on a
+# fresh, minimal Ubuntu installation. It's available publically and redirected
+# to from a tinyurl. It can be downloaded using `wget` or `curl` (if `curl` is
+# available, which it isn't on fresh Ubuntu installs) and run with the
+# following commands.
+#
+# 	wget -O bootstrap https://tinyurl.com/benjaminedwardwebb 
+# 	bash bootstrap
 #
 # 	sudo apt install curl
 # 	curl -L https://tinyurl.com/benjaminedwardwebb > bootstrap
-#	./bootstrap
+#	bash bootstrap
 #
 # It's also possible to use the long url to obtain the raw content from
 # GitHub.
@@ -29,46 +38,18 @@
 # required for a lot of other things as well. This kind of secret exchange
 # could be automated, but it would add a lot of complexity and is probably a
 # bad idea. Maybe there is a service that can perform this for me.
-echo "Bootstrap starting ..."
+# TODO bootstrap: Consider how to seed new hosts with secrets. Should this occur in the bootstrap script or something else?
+echo "Bootstrapping configuration ..."
 
-# Installing window managers (e.g., i3) and display managers with nix on
-# Ubuntu did not work as seamlessly as I was hoping. This might be because, in
-# order to take effect, they have to alter the system's configuration, and
-# with a vanilla nix install on Ubuntu the system configuration is not
-# actually under nix's control (like it would be with NixOS). For now, it's
-# easier to use the apt and the project-specific repositories to install.
-sudo /usr/lib/apt/apt-helper download-file https://debian.sur5r.net/i3/pool/main/s/sur5r-keyring/sur5r-keyring_2022.02.17_all.deb keyring.deb SHA256:52053550c4ecb4e97c48900c61b2df4ec50728249d054190e8a0925addb12fc6
-sudo dpkg -i ./keyring.deb
-sudo echo "deb http://debian.sur5r.net/i3/ $(grep '^DISTRIB_CODENAME=' /etc/lsb-release | cut -f2 -d=) universe" >> /etc/apt/sources.list.d/sur5r-i3.list
-sudo apt update
-sudo apt install i3
-sudo apt install i3status
-# TODO: Using Ubuntu's default display manager gdm3 for now.
-
-bash <(curl -L https://nixos.org/nix/install)
-. $HOME/.nix-profile/etc/profile.d/nix.sh
-
-nix-env -iA nixpkgs.fira-code
-nix-env -iA nixpkgs.firefox
-nix-env -iA nixpkgs.git
-nix-env -iA nixpkgs.glow
-nix-env -iA nixpkgs.mutt
-nix-env -iA nixpkgs.newsboat
-nix-env -iA nixpkgs.spotify-tui
-nix-env -iA nixpkgs.spotifyd
-nix-env -iA nixpkgs.ssmtp
-nix-env -iA nixpkgs.stow
-nix-env -iA nixpkgs.taskwarrior
-nix-env -iA nixpkgs.timewarrior
-nix-env -iA nixpkgs.tmux
-nix-env -iA nixpkgs.vim
-nix-env -iA nixpkgs.vimpager
-nix-env -iA nixpkgs.weechat
+sudo apt install git
 
 # Since most of my setup and configuration is still in a private repository on
 # GitHub, I have to authenticate before I can access it. The following steps
-# generate an ssh key pair (necessary for fetching via SSH whether the
-# repoistories are private or public
+# generate an SSH key pair and then prompt you to add it to your GitHub
+# account. Note that an SSH key is required for fetching git repositories via
+# SSH whether they are public or private, however the ability of the key to
+# identify you also provides access to private repositories for the account the
+# key is added to.
 ssh_key_path="$HOME/.ssh/id_rsa"
 
 ssh-keygen -f "${ssh_key_path}" -N ''
@@ -80,6 +61,10 @@ read -p "Continue? [Enter]"
 
 git clone git@github.com:benjaminedwardwebb/backpack
 git clone git@github.com:benjaminedwardwebb/.vim
+
+pushd backpack
+./install
+popd
 
 read -p "Bootstrap complete. Reboot? [Enter]"
 
