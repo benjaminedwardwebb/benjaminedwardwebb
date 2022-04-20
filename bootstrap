@@ -40,6 +40,7 @@
 # bad idea. Maybe there is a service that can perform this for me.
 # TODO bootstrap: Consider how to seed new hosts with secrets. Should this occur in the bootstrap script or something else?
 echo "Bootstrapping configuration ..."
+echo ""
 
 sudo apt install git
 
@@ -52,20 +53,36 @@ sudo apt install git
 # key is added to.
 ssh_key_path="$HOME/.ssh/id_rsa"
 
-ssh-keygen -f "${ssh_key_path}" -N ''
+ssh-keygen -f "$ssh_key_path" -N ''
 
-echo "Add the following public SSH key (at ${ssh_key_path}.pub) to your GitHub account.\n"
+echo ""
+echo "Add the following public SSH key (at ${ssh_key_path}.pub) to your"
+echo "GitHub account."
+echo ""
 cat "${ssh_key_path}.pub"
-
+echo ""
 read -p "Continue? [Enter]"
 
-git clone git@github.com:benjaminedwardwebb/backpack
-git clone git@github.com:benjaminedwardwebb/.vim
+if ! test -d "$HOME/backpack/.git"; then
+	git clone git@github.com:benjaminedwardwebb/backpack
+else
+	echo "	Git repository at $HOME/backpack appears to"
+   	echo "	already exist. Skipping git clone."	
+fi
+if ! test -d "$HOME/.vim/.git"; then
+	git clone git@github.com:benjaminedwardwebb/.vim
+else
+	echo "	Git repository at $HOME/.vim appears to"
+   	echo "	already exist. Skipping git clone."	
+fi
 
 pushd backpack
-./install
+./install || exit 1
 popd
 
+vim -c "PlugInstall | q | q" || exit 1
+
+echo ""
 read -p "Bootstrap complete. Reboot? [Enter]"
 
 shutdown -r now
