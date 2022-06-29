@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # delete-github-ssh-key
-# TODO
+# Removes the SSH key for the current host from my GitHub account.
+#
+# Requires the environment variable BOOTSTRAP_GITHUB_TOKEN to be set.
+#
+# This used to clean up SSH keys generated during continuous integration
+# tests.
 main() {
 	local -r github_token="$BOOTSTRAP_GITHUB_TOKEN"
 
@@ -29,3 +34,5 @@ main() {
 	echo "Removed GitHub SSH key with title $hostname."
 	return 0
 }
+
+main $@
