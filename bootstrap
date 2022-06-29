@@ -47,6 +47,9 @@ main() {
 	echo "Bootstrapping configuration ..."
 	echo ""
 
+	# Bootstrapping requires starting in the user's home directory. 
+	cd ~
+
 	sudo apt install git || return 1
 	sudo apt install curl || return 1
 
