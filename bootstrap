@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # bootstrap
 # An executable to bootstrap my setup, configuration, dotfiles, etc. on a
-# fresh (Ubuntu) host.
+# fresh (Ubuntu) host. It requires the environment variable
+# BOOTSTRAP_GITHUB_TOKEN to be set to work properly.
 #
 # This executable is not responsible for installing all of my configuration
 # itself. It does the minimal amount of work required to get git up and running
-# so it can clone down my other configuration repositories and use their
-# installers.
+# so that my other configuration repositories can be cloned down and installed
+# using their own installers.
 #
 # This executable can be downloaded and run using only programs available on a
 # fresh, minimal Ubuntu installation. It's available publically and redirected
@@ -14,9 +15,11 @@
 # available, which it isn't on fresh Ubuntu installs) and run with the
 # following commands.
 #
+# 	export BOOTSTRAP_GITHUB_TOKEN="<token>"
 # 	wget -O bootstrap https://tinyurl.com/benjaminedwardwebb 
 # 	bash bootstrap
 #
+# 	export BOOTSTRAP_GITHUB_TOKEN="<token>"
 # 	sudo apt install curl
 # 	curl -L https://tinyurl.com/benjaminedwardwebb > bootstrap
 #	bash bootstrap
@@ -26,62 +29,95 @@
 #
 # 	curl https://raw.githubusercontent.com/benjaminedwardwebb/benjaminedwardwebb/main/bootstrap > bootstrap
 #
-# This bootstrap still contains a manual step of adding the newly generated
-# SSH key (for git cloning purposes) to my GitHub account. This could probably
-# be automated provided all my configuration repositories were public on
-# GitHub.
+# This bootstrap will automatically generate a new SSH key and add it to my
+# GitHub account. This allows it to clone my private repositories. Be aware
+# of this key management step. This bootstrap does not do any other key or
+# secret management beyond that. Seeding a new host with additional secret data
+# (e.g., gpg key, passwords) is a step reserved for later in the host
+# initialization process, and it always requires some manual intervention.
 #
-# Note, however, that there's likely to be some manual step in bootstrapping
-# any new host because it will eventually require the exchange of secrets
-# (passwords, keys, etc.). This happens in the context of cloning private git
-# repositories here, but seeding secrets to a new host is likely to be
-# required for a lot of other things as well. This kind of secret exchange
-# could be automated, but it would add a lot of complexity and is probably a
-# bad idea. Maybe there is a service that can perform this for me.
-# TODO bootstrap: Consider how to seed new hosts with secrets. Should this occur in the bootstrap script or something else?
-echo "Bootstrapping configuration ..."
-echo ""
+# The only reason this bootstrap executable is not in the same repository as
+# the other installers is that those repositories are private, meaning this
+# script would not be downloadable from the web. If those other repositories
+# are made public, this script should be moved there.
 
-sudo apt install git
+main() {
+	local -r github_token="$BOOTSTRAP_GITHUB_TOKEN"
 
-# Since most of my setup and configuration is still in a private repository on
-# GitHub, I have to authenticate before I can access it. The following steps
-# generate an SSH key pair and then prompt you to add it to your GitHub
-# account. Note that an SSH key is required for fetching git repositories via
-# SSH whether they are public or private, however the ability of the key to
-# identify you also provides access to private repositories for the account the
-# key is added to.
-ssh_key_path="$HOME/.ssh/id_rsa"
+	echo "Bootstrapping configuration ..."
+	echo ""
 
-ssh-keygen -f "$ssh_key_path" -N ''
+	sudo apt install git || return 1
+	sudo apt install curl || return 1
 
-echo ""
-echo "Add the following public SSH key (at ${ssh_key_path}.pub) to your"
-echo "GitHub account."
-echo ""
-cat "${ssh_key_path}.pub"
-echo ""
-read -p "Continue? [Enter]"
+	# Since most of my setup and configuration is still in a private repository on
+	# GitHub, I have to authenticate before I can access it. The following steps
+	# generate an SSH key pair and then prompt you to add it to your GitHub
+	# account. Note that an SSH key is required for fetching git repositories via
+	# SSH whether they are public or private, however the ability of the key to
+	# identify you also provides access to private repositories for the account the
+	# key is added to.
+	ssh_key_path="$HOME/.ssh/id_rsa"
 
-if ! test -d "$HOME/backpack/.git"; then
-	git clone git@github.com:benjaminedwardwebb/backpack
-else
-	echo "	Git repository at $HOME/backpack appears to"
-   	echo "	already exist. Skipping git clone."	
-fi
-if ! test -d "$HOME/.vim/.git"; then
-	git clone git@github.com:benjaminedwardwebb/.vim
-else
-	echo "	Git repository at $HOME/.vim appears to"
-   	echo "	already exist. Skipping git clone."	
-fi
+	ssh-keygen -f "$ssh_key_path" -N '' || return 1
 
-pushd backpack
-./install || exit 1
-popd
+	local -r public_ssh_key="$(cat ${ssh_key_path}.pub)" || return 1
+	local -r hostname="$(hostname)" || return 1
 
-vim -c "PlugInstall | q | q" || exit 1
+	add_ssh_key_to_github "$github_token" "$hostname" "$public_ssh_key" || return 1
 
+	install_backpack || return 1
+
+	return 0
+}
+
+add_ssh_key_to_github() {
+	local -r github_token="$1"
+	local -r hostname="$2"
+	local -r public_ssh_key="$3"
+
+	echo ""
+	echo "Adding the public SSH key at ${ssh_key_path}.pub to your"
+	echo "GitHub account."
+	echo ""
+
+	# See: https://docs.github.com/en/rest/users/keys#create-a-public-ssh-key-for-the-authenticated-user
+	curl \
+		-X POST \
+		-H "Accept: application/vnd.github.v3+json" \
+		-H "Authorization: token $github_token" \
+		--data "{ \"title\": \"${hostname}\", \"key\": \"${public_ssh_key}\" }" \
+		https://api.github.com/user/keys \
+		|| return 1
+
+	return 0
+}
+
+install_backpack() {
+	if ! test -d "$HOME/backpack/.git"; then
+		git clone git@github.com:benjaminedwardwebb/backpack || return 1
+	else
+		echo "	Git repository at $HOME/backpack appears to"
+		echo "	already exist. Skipping git clone."	
+	fi
+	if ! test -d "$HOME/.vim/.git"; then
+		git clone git@github.com:benjaminedwardwebb/.vim || return 1
+	else
+		echo "	Git repository at $HOME/.vim appears to"
+		echo "	already exist. Skipping git clone."	
+	fi
+
+	pushd backpack
+	./install || return 1
+	popd
+
+	#vim -c "PlugInstall | q | q" || return 1
+	return 0
+}
+
+main "$@" || exit 1
+
+# Reboot the computer for new settings to take full effect.
 echo ""
 read -p "Bootstrap complete. Reboot? [Enter]"
 
