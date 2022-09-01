@@ -15,13 +15,13 @@
 # available, which it isn't on fresh Ubuntu installs) and run with the
 # following commands.
 #
-# 	export BOOTSTRAP_GITHUB_TOKEN="<token>"
 # 	wget -O bootstrap https://tinyurl.com/benjaminedwardwebb 
+# 	export BOOTSTRAP_GITHUB_TOKEN="<token>"
 # 	bash bootstrap
 #
-# 	export BOOTSTRAP_GITHUB_TOKEN="<token>"
 # 	sudo apt install curl
 # 	curl -L https://tinyurl.com/benjaminedwardwebb > bootstrap
+# 	export BOOTSTRAP_GITHUB_TOKEN="<token>"
 #	bash bootstrap
 #
 # It's also possible to use the long url to obtain the raw content from
@@ -44,11 +44,17 @@
 main() {
 	local -r github_token="$BOOTSTRAP_GITHUB_TOKEN"
 
+	instructions || return 1
+
 	echo "Bootstrapping configuration ..."
 	echo ""
 
 	# Bootstrapping requires starting in the user's home directory. 
 	cd ~
+
+	# Sometimes `apt update` fails when repositories are not reachable, but it
+	# usually won't affect the success of the rest of the bootstrap.
+	sudo apt update
 
 	sudo apt install git || return 1
 	sudo apt install curl || return 1
@@ -70,6 +76,52 @@ main() {
 	add_ssh_key_to_github "$github_token" "$hostname" "$public_ssh_key" || return 1
 
 	install_backpack || return 1
+
+	return 0
+}
+
+instructions() {
+	echo "Hello! 👋"
+	echo ""
+	echo "This executable bootstraps benjaminedwardwebb's configuration"
+	echo "on a new host machine. It requires sudo."
+	echo ""
+	sudo true && echo ""
+
+	# Check to see if this linux instance is a virtual machine.
+	# See: https://unix.stackexchange.com/a/32605/523086
+	if grep -q ^flags.*\ hypervisor\  /proc/cpuinfo || sudo dmidecode | grep -q "VMware"; then
+		echo "It appears this is a virtual machine (VM). VMs often start"
+		echo "with a small amount of disk space -- too small for the amount"
+		echo "of data this bootstrap installs (roughly 50 GB)."
+		echo ""
+		echo "Consider the following command and its output."
+		echo ""
+		echo "    df --human --output=avail . | tail -n 1"
+		printf "    " && df --human --output=avail . | tail -n 1
+		echo ""
+		echo "If you need to resize the current partition, run"
+		echo ""
+		echo "    wget -O resize https://tinyurl.com/benjaminedwardwebb-resize"
+		echo "    bash resize"
+		echo ""
+		echo "and follow the resize executable's instructions to resize the"
+		echo "VM's partition."
+		echo ""
+		read -p "Continue? (Press CTRL-C/CTRL-D to exit and resize instead) [Enter]"
+		echo ""
+	fi
+
+	if [ "${BOOTSTRAP_GITHUB_TOKEN:-unset}" = "unset" ]; then
+		echo "The environment variable BOOTSTRAP_GITHUB_TOKEN appears to be"
+		echo "unset. Check an existing host to find the value of this token"
+		echo "in something like pass, and then set this environment variable"
+		echo "with"
+		echo ""
+		echo "    export BOOTSTRAP_GITHUB_TOKEN=<token>"
+		echo ""
+		return 1
+	fi
 
 	return 0
 }
